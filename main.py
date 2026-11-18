@@ -1,4 +1,6 @@
+#Eu so importei isso para usar a fila
 from collections import deque
+#Aqui, esse import e apenas para limpar o terminal, para ficar mais bonito
 import os
 
 ARQUIVO = "dados_sistema.txt"
