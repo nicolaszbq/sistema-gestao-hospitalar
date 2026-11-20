@@ -5,9 +5,16 @@ import os
 
 ARQUIVO = "dados_sistema.txt"
 
+class No:
+    def __init__(self, nome):
+        self.nome = nome
+        self.subcategorias = []
+
+
 fila_pacientes = deque()
 pilha_prontuarios = []
 pacientes_internados = []
+arvore_clinica_geral = No("Clinica Geral")
 
 id_lista = 99
 id_fila = 204
@@ -39,6 +46,9 @@ def carregar_dados():
                 num = int(partes[1].split("-")[1])
                 if num > id_pilha_num:
                     id_pilha_num = num
+            elif tipo == "ARVORE" and len(partes) == 4:
+                # Aqui você pode implementar a lógica para carregar os dados da árvore, se necessário
+                pass
 
 carregar_dados()
 
@@ -319,6 +329,188 @@ def atualizar_paciente_lista():
     else:
         print("Voltando ao menu")
 
+#Controle de especialidades
+
+def pegar_no_filho(no, valor):
+    if no is None:
+        return None
+
+    if no.nome.lower() == valor.lower():
+        return no
+
+    for sub in no.subcategorias:
+        if sub.nome.lower() == valor.lower():
+            return sub
+    return None
+
+def verificar_existencia_especialidade(no, valor):
+    if no is None:
+        return False
+    if no.nome.lower() == valor.lower():
+        return True
+    for sub in no.subcategorias:
+        if verificar_existencia_especialidade(sub, valor):
+            return True
+    return False
+     
+
+def cadastrar_especialidade():
+    try:
+        nome = input("Digite o nome da especialidade (subcategoria)").strip()
+        if not nome:
+            print("O nome não pode ser vazio!")
+            return
+        
+        if verificar_existencia_especialidade(arvore_clinica_geral, nome):
+            print("A especialidade ja existe!")
+            return
+        else:
+            sub = No(nome)
+            arvore_clinica_geral.subcategorias.append(sub)
+            print("Especialidadae cadastrada com sucesso!")
+    except Exception as e:
+        print(f"Erro: {e}")
+
+def cadastrar_tipo_caso():
+    try:
+        esp = input("Digite o nome da especialidade a ser inserida! \n").strip()
+
+        if not esp:
+            print("A especialidade nao pode estar vazia!")
+            return
+        
+        if verificar_existencia_especialidade(esp):
+            caso = input("Digite o tipo de caso:\n").strip()
+            if not caso:
+                print("O caso nao pode estar vazio!")
+                return
+            
+            no = pegar_no_filho(arvore_clinica_geral, esp)
+
+            if verificar_existencia_especialidade(no, caso):
+                print("Esse caso ja existe!")
+                return
+            
+            no.subcategorias.append(No(caso))    
+            print("Caso adicionado com sucesso!")
+        else:
+            print("Essa especialidade nao existe!")
+    except Exception as e:
+        print(f"Erro: {e}")
+
+def atualizar_especialidade():
+    try:
+        esp = input("Digite o nome da especialidade: \n").strip()
+        if not esp:
+            print("A especialidade nao pode estar vazia!")
+            return
+        if verificar_existencia_especialidade(arvore_clinica_geral,esp):
+            esp_antiga = pegar_no_filho(arvore_clinica_geral, esp)
+            novo_nome = input("Digite o novo nome: \n").strip()
+            if not novo_nome:
+                print("O novo nome nao pode estar vazio!")
+                return
+            esp_antiga.nome = novo_nome
+            print("Especialidade Atualizada com sucesso!")
+            return
+        else:
+            print("Essa especialidade nao existe!")
+            return
+    except Exception as e:
+        print(f"Erro: {e}")
+       
+def atualizar_caso():
+    try:
+        esp = input("Digite o nome da especialidade: \n").strip()
+        if not esp:
+            print("A especialidade nao pode estar vazia!")
+            return
+        if verificar_existencia_especialidade(arvore_clinica_geral,esp):
+            caso_antigo_nome = input("Digite o nome do codigo a ser alterado: \n").strip()
+            if not caso_antigo_nome:
+                print("O caso nao pode estar vazio")
+                return
+            especialidade_pai = pegar_no_filho(arvore_clinica_geral, esp)
+            if verificar_existencia_especialidade(especialidade_pai, caso_antigo_nome):
+                caso_antigo = pegar_no_filho(especialidade_pai, caso_antigo_nome)
+
+                novo_nome = input("Digite o novo nome: \n").strip()
+                if not novo_nome:
+                    print("O novo nome nao pode estar vazio!")
+                    return
+                if verificar_existencia_especialidade(especialidade_pai, novo_nome):
+                    print("Este caso ja existe!")
+                    return
+                caso_antigo.nome = novo_nome
+                print("Caso atualizado com sucesso!")
+                return
+            else:
+                print("Este caso nao existe!")
+                return
+        else:
+            print("Essa especialidade nao existe!")
+            return
+    except Exception as e:
+        print(f"Erro: {e}") 
+
+def remover_especialidade():
+    try:
+        esp = input("Digite o nome da especialidade: \n").strip()
+        if not esp:
+            print("A especialidade nao pode estar vazia!")
+            return
+        especialidade_antiga_no = pegar_no_filho(arvore_clinica_geral, esp)
+        
+        if especialidade_antiga_no is None or especialidade_antiga_no == arvore_clinica_geral:
+            print("Essa especialidade nao existe!")
+            return
+        
+        resp = input("Tem certeza que deseja remover a especialidade? Isso removera todos os casos junto. S - N").upper().strip()
+        if resp not in ["S", "N"]:
+            print("Voce deve digitar S ou N!")
+            return
+        if resp == "N":
+            print("Operacao cancelada!")
+            return
+        print("Apagando casos...")
+        especialidade_antiga_no.subcategorias.clear()
+        print("Removendo especialidade...")
+        arvore_clinica_geral.subcategorias.remove(especialidade_antiga_no)
+        print("Especialidade removida com sucesso!")
+        
+    except Exception as e:
+        print(f"Erro: {e}")
+
+def remover_caso():
+    try:
+        esp = input("Digite o nome da especialidade:\n").strip()
+        if not esp:
+            print("A especialidade nao pode estar vazia!")
+            return
+        esp_no = pegar_no_filho(arvore_clinica_geral, esp)
+        if esp_no is None or esp_no == arvore_clinica_geral:
+            print("Essa especialidade nao existe!")
+            return
+        caso = input("Digite o nome do caso a ser removido:\n").strip()
+        if not caso:
+            print("O nome do caso nao pode estar vazio!")
+            return
+        caso_no = pegar_no_filho(esp_no, caso)
+        if caso_no is None or caso_no == esp_no:
+            print("Esse caso nao existe!")
+            return
+        resp = input("Voce realmente deseja remover este caso? S - N: ").upper().strip()
+        if resp not in ["S", "N"]:
+            print("Voce deve digitar S ou N!")
+            return
+        if resp == "N":
+            print("Operacao cancelada!")
+            return
+        print("Removendo caso...")
+        esp_no.subcategorias.remove(caso_no)
+        print("Caso removido com sucesso!")
+    except Exception as e:
+        print(f"Erro: {e}")
 while True:
     os.system('cls' if os.name == 'nt' else 'clear')
     print("======================")
