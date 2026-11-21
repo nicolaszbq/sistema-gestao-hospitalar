@@ -3,6 +3,19 @@ from collections import deque
 #Aqui, esse import e apenas para limpar o terminal, para ficar mais bonito
 import os
 
+
+def pegar_no_filho(no, valor):
+    if no is None:
+        return None
+
+    if no.nome.lower() == valor.lower():
+        return no
+
+    for sub in no.subcategorias:
+        if sub.nome.lower() == valor.lower():
+            return sub
+    return None
+
 ARQUIVO = "dados_sistema.txt"
 
 class No:
@@ -10,6 +23,18 @@ class No:
         self.nome = nome
         self.subcategorias = []
 
+
+def salvar_dados():
+    with open(ARQUIVO, "w", encoding="utf-8") as arquivo:
+        for f in fila_pacientes:
+            arquivo.write("FILA|"+f["id"]+"|"+f["nome"]+"|"+f["prioridade"]+"\n")
+        for p in pilha_prontuarios:
+            arquivo.write("PILHA|"+p["id"]+"|"+p["paciente"]+"|"+p["procedimento"]+"\n")
+        for l in pacientes_internados:
+            arquivo.write("LISTA|"+l["id"]+"|"+l["nome"]+"|"+l["leito"]+"|"+l["status"]+"\n")
+        for esp_no in arvore_clinica_geral.subcategorias:
+            for caso_no in esp_no.subcategorias:
+                arquivo.write("ARVORE|"+arvore_clinica_geral.nome+"|"+esp_no.nome+"|"+caso_no.nome+"\n")
 
 fila_pacientes = deque()
 pilha_prontuarios = []
@@ -21,6 +46,7 @@ id_fila = 204
 id_pilha_num = 888
 
 def carregar_dados():
+    print("Carregando dados...")
     global id_lista, id_fila, id_pilha_num
     if not os.path.exists(ARQUIVO):
         return
@@ -32,23 +58,33 @@ def carregar_dados():
             partes = linha.split("|")
             tipo = partes[0]
             if tipo == "LISTA" and len(partes) == 5:
+                print("Carregando listas...")
                 pacientes_internados.append({"id": partes[1], "nome": partes[2], "leito": partes[3], "status": partes[4]})
                 num = int(partes[1])
                 if num > id_lista:
                     id_lista = num
             elif tipo == "FILA" and len(partes) == 4:
+                print("Carregando filas...")
                 fila_pacientes.append({"id": partes[1], "nome": partes[2], "prioridade": partes[3]})
                 num = int(partes[1])
                 if num > id_fila:
                     id_fila = num
             elif tipo == "PILHA" and len(partes) == 4:
+                print("Carregando pilhas...")
                 pilha_prontuarios.append({"id": partes[1], "paciente": partes[2], "procedimento": partes[3]})
                 num = int(partes[1].split("-")[1])
                 if num > id_pilha_num:
                     id_pilha_num = num
             elif tipo == "ARVORE" and len(partes) == 4:
-                # Aqui você pode implementar a lógica para carregar os dados da árvore, se necessário
-                pass
+                especialidade_nome = partes[2]
+                caso_nome = partes[3]
+                esp_no = pegar_no_filho(arvore_clinica_geral, especialidade_nome)
+                if esp_no is None:
+                    esp_no = No(especialidade_nome)
+                    arvore_clinica_geral.subcategorias.append(esp_no)
+                caso_no = pegar_no_filho(esp_no, caso_nome)
+                if caso_no is None:
+                    esp_no.subcategorias.append(No(caso_nome))
 
 carregar_dados()
 
@@ -69,13 +105,7 @@ def adicionar_paciente():
             global id_fila
             id_fila += 1
             fila_pacientes.append({"id": str(id_fila), "nome": nome, "prioridade": prioridade})
-            with open(ARQUIVO, "w", encoding="utf-8") as arquivo:
-                for f in fila_pacientes:
-                    arquivo.write("FILA|"+f["id"]+"|"+f["nome"]+"|"+f["prioridade"]+"\n")
-                for p in pilha_prontuarios:
-                    arquivo.write("PILHA|"+p["id"]+"|"+p["paciente"]+"|"+p["procedimento"]+"\n")
-                for l in pacientes_internados:
-                    arquivo.write("LISTA|"+l["id"]+"|"+l["nome"]+"|"+l["leito"]+"|"+l["status"]+"\n")
+            salvar_dados()
             print("Paciente adicionado na fila com sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
@@ -93,13 +123,7 @@ def remover_paciente():
             print("Fila vazia!")
         else:
             fila_pacientes.popleft()
-            with open(ARQUIVO, "w", encoding="utf-8") as arquivo:
-                for f in fila_pacientes:
-                    arquivo.write("FILA|"+f["id"]+"|"+f["nome"]+"|"+f["prioridade"]+"\n")
-                for p in pilha_prontuarios:
-                    arquivo.write("PILHA|"+p["id"]+"|"+p["paciente"]+"|"+p["procedimento"]+"\n")
-                for l in pacientes_internados:
-                    arquivo.write("LISTA|"+l["id"]+"|"+l["nome"]+"|"+l["leito"]+"|"+l["status"]+"\n")
+            salvar_dados()
             print("Paciente removido do inicio da fila com sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
@@ -121,13 +145,7 @@ def atualizar_paciente():
                 nova_prioridade = input("Digite a nova prioridade: ")
                 p["nome"] = paciente_novo
                 p["prioridade"] = nova_prioridade
-                with open(ARQUIVO, "w", encoding="utf-8") as arquivo:
-                    for f in fila_pacientes:
-                        arquivo.write("FILA|"+f["id"]+"|"+f["nome"]+"|"+f["prioridade"]+"\n")
-                    for p2 in pilha_prontuarios:
-                        arquivo.write("PILHA|"+p2["id"]+"|"+p2["paciente"]+"|"+p2["procedimento"]+"\n")
-                    for l in pacientes_internados:
-                        arquivo.write("LISTA|"+l["id"]+"|"+l["nome"]+"|"+l["leito"]+"|"+l["status"]+"\n")
+                salvar_dados()
                 print("Paciente atualizado com sucesso!")
                 encontrado = True
                 break
@@ -143,6 +161,7 @@ def atualizar_paciente():
         print("Voltando ao menu")
 
 def mostrar_prontuarios():
+    os.system('cls' if os.name == 'nt' else 'clear')
     pos = 1
     for prontuario in pilha_prontuarios:
         print("Prontuario: "+prontuario["paciente"]+" ----- ID: "+prontuario["id"]+" ----- Procedimento: "+prontuario["procedimento"]+" ----- Posicao: "+str(pos))
@@ -160,13 +179,7 @@ def adicionar_prontuario():
             id_pilha_num += 1
             id_str = "PRONT-"+str(id_pilha_num)
             pilha_prontuarios.append({"id": id_str, "paciente": paciente, "procedimento": procedimento})
-            with open(ARQUIVO, "w", encoding="utf-8") as arquivo:
-                for f in fila_pacientes:
-                    arquivo.write("FILA|"+f["id"]+"|"+f["nome"]+"|"+f["prioridade"]+"\n")
-                for p in pilha_prontuarios:
-                    arquivo.write("PILHA|"+p["id"]+"|"+p["paciente"]+"|"+p["procedimento"]+"\n")
-                for l in pacientes_internados:
-                    arquivo.write("LISTA|"+l["id"]+"|"+l["nome"]+"|"+l["leito"]+"|"+l["status"]+"\n")
+            salvar_dados()
             print("Prontuario adicionado com sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
@@ -184,13 +197,7 @@ def remover_prontuario():
             print("Pilha vazia!")
         else:
             pilha_prontuarios.pop()
-            with open(ARQUIVO, "w", encoding="utf-8") as arquivo:
-                for f in fila_pacientes:
-                    arquivo.write("FILA|"+f["id"]+"|"+f["nome"]+"|"+f["prioridade"]+"\n")
-                for p in pilha_prontuarios:
-                    arquivo.write("PILHA|"+p["id"]+"|"+p["paciente"]+"|"+p["procedimento"]+"\n")
-                for l in pacientes_internados:
-                    arquivo.write("LISTA|"+l["id"]+"|"+l["nome"]+"|"+l["leito"]+"|"+l["status"]+"\n")
+            salvar_dados()
             print("Prontuario removido do topo com sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
@@ -212,13 +219,7 @@ def atualizar_prontuario():
                 procedimento_novo = input("Digite o novo procedimento: ")
                 p["paciente"] = paciente_novo
                 p["procedimento"] = procedimento_novo
-                with open(ARQUIVO, "w", encoding="utf-8") as arquivo:
-                    for f in fila_pacientes:
-                        arquivo.write("FILA|"+f["id"]+"|"+f["nome"]+"|"+f["prioridade"]+"\n")
-                    for p2 in pilha_prontuarios:
-                        arquivo.write("PILHA|"+p2["id"]+"|"+p2["paciente"]+"|"+p2["procedimento"]+"\n")
-                    for l in pacientes_internados:
-                        arquivo.write("LISTA|"+l["id"]+"|"+l["nome"]+"|"+l["leito"]+"|"+l["status"]+"\n")
+                salvar_dados()
                 print("Prontuario atualizado com sucesso!")
                 encontrado = True
                 break
@@ -234,10 +235,12 @@ def atualizar_prontuario():
         print("Voltando ao menu")
 
 def mostrar_pacientes():
+    os.system('cls' if os.name == 'nt' else 'clear')
     pos = 1
     for paciente in pacientes_internados:
         print("Paciente: "+paciente["nome"]+" ----- ID: "+paciente["id"]+" ----- Leito: "+paciente["leito"]+" ----- Status: "+paciente["status"]+" ----- Posicao: "+str(pos))
         pos+=1
+    input("\nPressione ENTER para continuar...")
 
 def cadastrar_paciente():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -251,22 +254,16 @@ def cadastrar_paciente():
             global id_lista
             id_lista += 1
             pacientes_internados.append({"id": str(id_lista), "nome": nome, "leito": leito, "status": status})
-            with open(ARQUIVO, "w", encoding="utf-8") as arquivo:
-                for f in fila_pacientes:
-                    arquivo.write("FILA|"+f["id"]+"|"+f["nome"]+"|"+f["prioridade"]+"\n")
-                for p in pilha_prontuarios:
-                    arquivo.write("PILHA|"+p["id"]+"|"+p["paciente"]+"|"+p["procedimento"]+"\n")
-                for l in pacientes_internados:
-                    arquivo.write("LISTA|"+l["id"]+"|"+l["nome"]+"|"+l["leito"]+"|"+l["status"]+"\n")
+            salvar_dados()
             print("Paciente cadastrado com sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
     print("Deseja cadastrar outro paciente? SIM - NAO")
-    resp = input()
+    resp = input().upper().strip()
     if resp == "SIM":
         cadastrar_paciente()
     else:
-        print("Voltando ao menu")
+        input("\nPressione ENTER para continuar...")
 
 def remover_paciente_lista():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -276,13 +273,7 @@ def remover_paciente_lista():
         for p in pacientes_internados:
             if p["nome"] == nome:
                 pacientes_internados.remove(p)
-                with open(ARQUIVO, "w", encoding="utf-8") as arquivo:
-                    for f in fila_pacientes:
-                        arquivo.write("FILA|"+f["id"]+"|"+f["nome"]+"|"+f["prioridade"]+"\n")
-                    for p2 in pilha_prontuarios:
-                        arquivo.write("PILHA|"+p2["id"]+"|"+p2["paciente"]+"|"+p2["procedimento"]+"\n")
-                    for l in pacientes_internados:
-                        arquivo.write("LISTA|"+l["id"]+"|"+l["nome"]+"|"+l["leito"]+"|"+l["status"]+"\n")
+                salvar_dados()
                 print("Paciente removido com sucesso!")
                 encontrado = True
                 break
@@ -291,11 +282,11 @@ def remover_paciente_lista():
     except Exception as e:
         print(f"Erro: {e}")
     print("Deseja remover outro paciente? SIM - NAO")
-    resp = input()
+    resp = input().upper().strip()
     if resp == "SIM":
         remover_paciente_lista()
     else:
-        print("Voltando ao menu")
+        input("\nPressione ENTER para continuar...")
 
 def atualizar_paciente_lista():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -308,13 +299,7 @@ def atualizar_paciente_lista():
                 novo_status = input("Digite o novo status: ")
                 p["leito"] = novo_leito
                 p["status"] = novo_status
-                with open(ARQUIVO, "w", encoding="utf-8") as arquivo:
-                    for f in fila_pacientes:
-                        arquivo.write("FILA|"+f["id"]+"|"+f["nome"]+"|"+f["prioridade"]+"\n")
-                    for p2 in pilha_prontuarios:
-                        arquivo.write("PILHA|"+p2["id"]+"|"+p2["paciente"]+"|"+p2["procedimento"]+"\n")
-                    for l in pacientes_internados:
-                        arquivo.write("LISTA|"+l["id"]+"|"+l["nome"]+"|"+l["leito"]+"|"+l["status"]+"\n")
+                salvar_dados()
                 print("Paciente atualizado com sucesso!")
                 encontrado = True
                 break
@@ -323,25 +308,25 @@ def atualizar_paciente_lista():
     except Exception as e:
         print(f"Erro: {e}")
     print("Deseja atualizar outro paciente? SIM - NAO")
-    resp = input()
+    resp = input().upper().strip()
     if resp == "SIM":
         atualizar_paciente_lista()
     else:
-        print("Voltando ao menu")
+        input("\nPressione ENTER para continuar...")
 
 #Controle de especialidades
-
-def pegar_no_filho(no, valor):
-    if no is None:
-        return None
-
-    if no.nome.lower() == valor.lower():
-        return no
-
-    for sub in no.subcategorias:
-        if sub.nome.lower() == valor.lower():
-            return sub
-    return None
+def mostrar_especialidades():
+    os.system('cls' if os.name == 'nt' else 'clear')
+    if len(arvore_clinica_geral.subcategorias) == 0:
+        print("Nenhum dado na arvore!")
+        input("\nPressione ENTER para continuar...")
+        return
+    print(arvore_clinica_geral.nome)
+    for sub in arvore_clinica_geral.subcategorias:
+        print("----" + sub.nome)
+        for ins in sub.subcategorias:
+            print("     -" + ins.nome)
+    input("\nPressione ENTER para continuar...")
 
 def verificar_existencia_especialidade(no, valor):
     if no is None:
@@ -352,9 +337,9 @@ def verificar_existencia_especialidade(no, valor):
         if verificar_existencia_especialidade(sub, valor):
             return True
     return False
-     
 
 def cadastrar_especialidade():
+    os.system('cls' if os.name == 'nt' else 'clear')
     try:
         nome = input("Digite o nome da especialidade (subcategoria)").strip()
         if not nome:
@@ -368,10 +353,13 @@ def cadastrar_especialidade():
             sub = No(nome)
             arvore_clinica_geral.subcategorias.append(sub)
             print("Especialidadae cadastrada com sucesso!")
+            salvar_dados()
+            input("\nPressione ENTER para continuar...")
     except Exception as e:
         print(f"Erro: {e}")
 
 def cadastrar_tipo_caso():
+    os.system('cls' if os.name == 'nt' else 'clear')
     try:
         esp = input("Digite o nome da especialidade a ser inserida! \n").strip()
 
@@ -379,7 +367,7 @@ def cadastrar_tipo_caso():
             print("A especialidade nao pode estar vazia!")
             return
         
-        if verificar_existencia_especialidade(esp):
+        if verificar_existencia_especialidade(arvore_clinica_geral, esp):
             caso = input("Digite o tipo de caso:\n").strip()
             if not caso:
                 print("O caso nao pode estar vazio!")
@@ -393,12 +381,15 @@ def cadastrar_tipo_caso():
             
             no.subcategorias.append(No(caso))    
             print("Caso adicionado com sucesso!")
+            salvar_dados()
+            input("\nPressione ENTER para continuar...")
         else:
             print("Essa especialidade nao existe!")
     except Exception as e:
         print(f"Erro: {e}")
 
 def atualizar_especialidade():
+    os.system('cls' if os.name == 'nt' else 'clear')
     try:
         esp = input("Digite o nome da especialidade: \n").strip()
         if not esp:
@@ -412,7 +403,8 @@ def atualizar_especialidade():
                 return
             esp_antiga.nome = novo_nome
             print("Especialidade Atualizada com sucesso!")
-            return
+            salvar_dados()
+            input("\nPressione ENTER para continuar...")
         else:
             print("Essa especialidade nao existe!")
             return
@@ -420,6 +412,7 @@ def atualizar_especialidade():
         print(f"Erro: {e}")
        
 def atualizar_caso():
+    os.system('cls' if os.name == 'nt' else 'clear')
     try:
         esp = input("Digite o nome da especialidade: \n").strip()
         if not esp:
@@ -443,7 +436,8 @@ def atualizar_caso():
                     return
                 caso_antigo.nome = novo_nome
                 print("Caso atualizado com sucesso!")
-                return
+                salvar_dados()
+                input("\nPressione ENTER para continuar...")
             else:
                 print("Este caso nao existe!")
                 return
@@ -454,6 +448,7 @@ def atualizar_caso():
         print(f"Erro: {e}") 
 
 def remover_especialidade():
+    os.system('cls' if os.name == 'nt' else 'clear')
     try:
         esp = input("Digite o nome da especialidade: \n").strip()
         if not esp:
@@ -477,11 +472,14 @@ def remover_especialidade():
         print("Removendo especialidade...")
         arvore_clinica_geral.subcategorias.remove(especialidade_antiga_no)
         print("Especialidade removida com sucesso!")
+        salvar_dados()
+        input("\nPressione ENTER para continuar...")
         
     except Exception as e:
         print(f"Erro: {e}")
 
 def remover_caso():
+    os.system('cls' if os.name == 'nt' else 'clear')
     try:
         esp = input("Digite o nome da especialidade:\n").strip()
         if not esp:
@@ -509,8 +507,11 @@ def remover_caso():
         print("Removendo caso...")
         esp_no.subcategorias.remove(caso_no)
         print("Caso removido com sucesso!")
+        salvar_dados()
+        input("\nPressione ENTER para continuar...")
     except Exception as e:
         print(f"Erro: {e}")
+
 while True:
     os.system('cls' if os.name == 'nt' else 'clear')
     print("======================")
@@ -634,24 +635,33 @@ while True:
                 print("(2) - Remover Especialidade")
                 print("(3) - Atualizar Especialidade")
                 print("(4) - Consultar Especialidades")
-                print("(5) - Voltar")
+                print("(5) - Cadastrar Caso")
+                print("(6) - Remover Caso")
+                print("(7) - Atualizar Caso")
+                print("(8) - Voltar")
                 print("================================")
 
                 try:
                     op = int(input("Digite uma opção: "))
 
-                    if op == 5:
+                    if op == 8:
                         break
-                    elif op in (1, 2, 3, 4):
-                        print("Opção selecionada:", op)
-                        input("\nPressione ENTER para continuar...")
-                    else:
-                        print("Digite uma opção válida!")
-                        input("\nPressione ENTER para continuar...")
-
-                except ValueError:
-                    print("Digite apenas números!")
-                    input("\nPressione ENTER para continuar...")
+                    elif op == 1:
+                        cadastrar_especialidade()
+                    elif op == 2:
+                        remover_especialidade()
+                    elif op == 3:
+                        atualizar_especialidade()
+                    elif op == 4:
+                        mostrar_especialidades()
+                    elif op == 5:
+                        cadastrar_tipo_caso()
+                    elif op == 6:
+                        remover_caso()
+                    elif op == 7:
+                        atualizar_caso()
+                except Exception as e:
+                    print(f"Error: {e}")
 
         elif r == 5:
             print("Encerrando o programa...")
