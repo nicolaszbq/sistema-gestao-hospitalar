@@ -33,6 +33,8 @@ def salvar_dados():
         for l in pacientes_internados:
             arquivo.write("LISTA|"+l["id"]+"|"+l["nome"]+"|"+l["leito"]+"|"+l["status"]+"\n")
         for esp_no in arvore_clinica_geral.subcategorias:
+            if len(esp_no.subcategorias) == 0:
+                arquivo.write("ARVORE|"+arvore_clinica_geral.nome+"|"+esp_no.nome+"\n")
             for caso_no in esp_no.subcategorias:
                 arquivo.write("ARVORE|"+arvore_clinica_geral.nome+"|"+esp_no.nome+"|"+caso_no.nome+"\n")
 
@@ -75,20 +77,24 @@ def carregar_dados():
                 num = int(partes[1].split("-")[1])
                 if num > id_pilha_num:
                     id_pilha_num = num
-            elif tipo == "ARVORE" and len(partes) == 4:
+            elif tipo == "ARVORE" and (len(partes) == 3 or len(partes) == 4):
                 especialidade_nome = partes[2]
-                caso_nome = partes[3]
                 esp_no = pegar_no_filho(arvore_clinica_geral, especialidade_nome)
                 if esp_no is None:
                     esp_no = No(especialidade_nome)
                     arvore_clinica_geral.subcategorias.append(esp_no)
-                caso_no = pegar_no_filho(esp_no, caso_nome)
-                if caso_no is None:
-                    esp_no.subcategorias.append(No(caso_nome))
+                if len(partes) == 4:
+                    caso_nome = partes[3]
+                    caso_no = pegar_no_filho(esp_no, caso_nome)
+                    if caso_no is None:
+                        esp_no.subcategorias.append(No(caso_nome))
 
 carregar_dados()
 
 def mostrar_fila():
+    if len(fila_pacientes) == 0:
+        print("Fila vazia!")
+        return
     pos = 1
     for paciente in fila_pacientes:
         print("Paciente: "+paciente["nome"]+" ----- ID: "+paciente["id"]+" ----- Prioridade: "+paciente["prioridade"]+" ----- Posicao: "+str(pos))
@@ -97,20 +103,19 @@ def mostrar_fila():
 def adicionar_paciente():
     os.system('cls' if os.name == 'nt' else 'clear')
     try:
-        nome = input("Digite o nome do paciente: ")
-        prioridade = input("Digite a prioridade: ")
+        nome = input("Digite o nome do paciente: ").replace("|", "").strip()
+        prioridade = input("Digite a prioridade: ").replace("|", "").strip()
         if nome == "" or prioridade == "":
             print("Preencha todos os campos!")
         else:
             global id_fila
             id_fila += 1
             fila_pacientes.append({"id": str(id_fila), "nome": nome, "prioridade": prioridade})
-            salvar_dados()
             print("Paciente adicionado na fila com sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
     print("Deseja adicionar outro paciente? SIM - NAO")
-    resp = input()
+    resp = input().upper().strip()
     if resp == "SIM":
         adicionar_paciente()
     else:
@@ -123,12 +128,11 @@ def remover_paciente():
             print("Fila vazia!")
         else:
             fila_pacientes.popleft()
-            salvar_dados()
             print("Paciente removido do inicio da fila com sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
     print("Deseja remover outro paciente? SIM - NAO")
-    resp = input()
+    resp = input().upper().strip()
     if resp == "SIM":
         remover_paciente()
     else:
@@ -137,41 +141,47 @@ def remover_paciente():
 def atualizar_paciente():
     os.system('cls' if os.name == 'nt' else 'clear')
     try:
-        paciente_antigo = input("Digite o nome do paciente a ser atualizado: ")
+        mostrar_fila()
+        id_paciente = input("\nDigite o ID do paciente a ser atualizado: ").strip()
         encontrado = False
         for p in fila_pacientes:
-            if p["nome"] == paciente_antigo:
-                paciente_novo = input("Digite o novo nome: ")
-                nova_prioridade = input("Digite a nova prioridade: ")
+            if p["id"] == id_paciente:
+                encontrado = True
+                paciente_novo = input("Digite o novo nome: ").replace("|", "").strip()
+                nova_prioridade = input("Digite a nova prioridade: ").replace("|", "").strip()
+                if paciente_novo == "" or nova_prioridade == "":
+                    print("Preencha todos os campos!")
+                    break
                 p["nome"] = paciente_novo
                 p["prioridade"] = nova_prioridade
-                salvar_dados()
                 print("Paciente atualizado com sucesso!")
-                encontrado = True
                 break
         if not encontrado:
             print("Paciente não encontrado na fila!")
     except Exception as e:
         print(f"Erro: {e}")
     print("Deseja atualizar outro paciente? SIM - NAO")
-    resp = input()
+    resp = input().upper().strip()
     if resp == "SIM":
         atualizar_paciente()
     else:
         print("Voltando ao menu")
 
 def mostrar_prontuarios():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    if len(pilha_prontuarios) == 0:
+        print("Pilha vazia!")
+        return
     pos = 1
-    for prontuario in pilha_prontuarios:
-        print("Prontuario: "+prontuario["paciente"]+" ----- ID: "+prontuario["id"]+" ----- Procedimento: "+prontuario["procedimento"]+" ----- Posicao: "+str(pos))
+    for prontuario in reversed(pilha_prontuarios):
+        topo = " <-- TOPO" if pos == 1 else ""
+        print("Prontuario: "+prontuario["paciente"]+" ----- ID: "+prontuario["id"]+" ----- Procedimento: "+prontuario["procedimento"]+" ----- Posicao: "+str(pos)+topo)
         pos+=1
 
 def adicionar_prontuario():
     os.system('cls' if os.name == 'nt' else 'clear')
     try:
-        paciente = input("Digite o nome do paciente: ")
-        procedimento = input("Digite o procedimento: ")
+        paciente = input("Digite o nome do paciente: ").replace("|", "").strip()
+        procedimento = input("Digite o procedimento: ").replace("|", "").strip()
         if paciente == "" or procedimento == "":
             print("Preencha todos os campos!")
         else:
@@ -179,12 +189,11 @@ def adicionar_prontuario():
             id_pilha_num += 1
             id_str = "PRONT-"+str(id_pilha_num)
             pilha_prontuarios.append({"id": id_str, "paciente": paciente, "procedimento": procedimento})
-            salvar_dados()
             print("Prontuario adicionado com sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
     print("Deseja adicionar outro prontuario? SIM - NAO")
-    resp = input()
+    resp = input().upper().strip()
     if resp == "SIM":
         adicionar_prontuario()
     else:
@@ -197,12 +206,11 @@ def remover_prontuario():
             print("Pilha vazia!")
         else:
             pilha_prontuarios.pop()
-            salvar_dados()
             print("Prontuario removido do topo com sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
     print("Deseja remover outro prontuario? SIM - NAO")
-    resp = input()
+    resp = input().upper().strip()
     if resp == "SIM":
         remover_prontuario()
     else:
@@ -211,50 +219,53 @@ def remover_prontuario():
 def atualizar_prontuario():
     os.system('cls' if os.name == 'nt' else 'clear')
     try:
-        id_antigo = input("Digite o ID do prontuario a ser atualizado: ")
+        mostrar_prontuarios()
+        id_antigo = input("\nDigite o ID do prontuario a ser atualizado: ").upper().strip()
         encontrado = False
         for p in pilha_prontuarios:
             if p["id"] == id_antigo:
-                paciente_novo = input("Digite o novo nome do paciente: ")
-                procedimento_novo = input("Digite o novo procedimento: ")
+                encontrado = True
+                paciente_novo = input("Digite o novo nome do paciente: ").replace("|", "").strip()
+                procedimento_novo = input("Digite o novo procedimento: ").replace("|", "").strip()
+                if paciente_novo == "" or procedimento_novo == "":
+                    print("Preencha todos os campos!")
+                    break
                 p["paciente"] = paciente_novo
                 p["procedimento"] = procedimento_novo
-                salvar_dados()
                 print("Prontuario atualizado com sucesso!")
-                encontrado = True
                 break
         if not encontrado:
             print("Prontuario não encontrado!")
     except Exception as e:
         print(f"Erro: {e}")
     print("Deseja atualizar outro prontuario? SIM - NAO")
-    resp = input()
+    resp = input().upper().strip()
     if resp == "SIM":
         atualizar_prontuario()
     else:
         print("Voltando ao menu")
 
 def mostrar_pacientes():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    if len(pacientes_internados) == 0:
+        print("Nenhum paciente internado!")
+        return
     pos = 1
     for paciente in pacientes_internados:
         print("Paciente: "+paciente["nome"]+" ----- ID: "+paciente["id"]+" ----- Leito: "+paciente["leito"]+" ----- Status: "+paciente["status"]+" ----- Posicao: "+str(pos))
         pos+=1
-    input("\nPressione ENTER para continuar...")
 
 def cadastrar_paciente():
     os.system('cls' if os.name == 'nt' else 'clear')
     try:
-        nome = input("Digite o nome do paciente: ")
-        leito = input("Digite o leito: ")
-        status = input("Digite o status (Estavel ou Observacao): ")
+        nome = input("Digite o nome do paciente: ").replace("|", "").strip()
+        leito = input("Digite o leito: ").replace("|", "").strip()
+        status = input("Digite o status (Estavel ou Observacao): ").replace("|", "").strip()
         if nome == "" or leito == "" or status == "":
             print("Preencha todos os campos!")
         else:
             global id_lista
             id_lista += 1
             pacientes_internados.append({"id": str(id_lista), "nome": nome, "leito": leito, "status": status})
-            salvar_dados()
             print("Paciente cadastrado com sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
@@ -268,12 +279,12 @@ def cadastrar_paciente():
 def remover_paciente_lista():
     os.system('cls' if os.name == 'nt' else 'clear')
     try:
-        nome = input("Digite o nome do paciente a ser removido: ")
+        mostrar_pacientes()
+        id_paciente = input("\nDigite o ID do paciente a ser removido: ").strip()
         encontrado = False
         for p in pacientes_internados:
-            if p["nome"] == nome:
+            if p["id"] == id_paciente:
                 pacientes_internados.remove(p)
-                salvar_dados()
                 print("Paciente removido com sucesso!")
                 encontrado = True
                 break
@@ -291,17 +302,22 @@ def remover_paciente_lista():
 def atualizar_paciente_lista():
     os.system('cls' if os.name == 'nt' else 'clear')
     try:
-        nome = input("Digite o nome do paciente a ser atualizado: ")
+        mostrar_pacientes()
+        id_paciente = input("\nDigite o ID do paciente a ser atualizado: ").strip()
         encontrado = False
         for p in pacientes_internados:
-            if p["nome"] == nome:
-                novo_leito = input("Digite o novo leito: ")
-                novo_status = input("Digite o novo status: ")
+            if p["id"] == id_paciente:
+                encontrado = True
+                novo_nome = input("Digite o novo nome: ").replace("|", "").strip()
+                novo_leito = input("Digite o novo leito: ").replace("|", "").strip()
+                novo_status = input("Digite o novo status (Estavel ou Observacao): ").replace("|", "").strip()
+                if novo_nome == "" or novo_leito == "" or novo_status == "":
+                    print("Preencha todos os campos!")
+                    break
+                p["nome"] = novo_nome
                 p["leito"] = novo_leito
                 p["status"] = novo_status
-                salvar_dados()
                 print("Paciente atualizado com sucesso!")
-                encontrado = True
                 break
         if not encontrado:
             print("Paciente não encontrado!")
@@ -314,19 +330,16 @@ def atualizar_paciente_lista():
     else:
         input("\nPressione ENTER para continuar...")
 
-#Controle de especialidades
 def mostrar_especialidades():
     os.system('cls' if os.name == 'nt' else 'clear')
     if len(arvore_clinica_geral.subcategorias) == 0:
         print("Nenhum dado na arvore!")
-        input("\nPressione ENTER para continuar...")
         return
     print(arvore_clinica_geral.nome)
     for sub in arvore_clinica_geral.subcategorias:
         print("----" + sub.nome)
         for ins in sub.subcategorias:
             print("     -" + ins.nome)
-    input("\nPressione ENTER para continuar...")
 
 def verificar_existencia_especialidade(no, valor):
     if no is None:
@@ -341,48 +354,47 @@ def verificar_existencia_especialidade(no, valor):
 def cadastrar_especialidade():
     os.system('cls' if os.name == 'nt' else 'clear')
     try:
-        nome = input("Digite o nome da especialidade (subcategoria)").strip()
+        nome = input("Digite o nome da especialidade (subcategoria): ").replace("|", "").strip()
         if not nome:
-            print("O nome não pode ser vazio!")
+            print("O nome nao pode ser vazio!")
             return
-        
+
         if verificar_existencia_especialidade(arvore_clinica_geral, nome):
             print("A especialidade ja existe!")
             return
         else:
             sub = No(nome)
             arvore_clinica_geral.subcategorias.append(sub)
-            print("Especialidadae cadastrada com sucesso!")
-            salvar_dados()
-            input("\nPressione ENTER para continuar...")
+            print("Especialidade cadastrada com sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
 
 def cadastrar_tipo_caso():
     os.system('cls' if os.name == 'nt' else 'clear')
     try:
-        esp = input("Digite o nome da especialidade a ser inserida! \n").strip()
+        esp = input("Digite o nome da especialidade onde o caso sera inserido:\n").strip()
 
         if not esp:
             print("A especialidade nao pode estar vazia!")
             return
-        
+
         if verificar_existencia_especialidade(arvore_clinica_geral, esp):
-            caso = input("Digite o tipo de caso:\n").strip()
+            no = pegar_no_filho(arvore_clinica_geral, esp)
+            if no is None or no == arvore_clinica_geral:
+                print("Essa especialidade nao existe!")
+                return
+
+            caso = input("Digite o tipo de caso:\n").replace("|", "").strip()
             if not caso:
                 print("O caso nao pode estar vazio!")
                 return
-            
-            no = pegar_no_filho(arvore_clinica_geral, esp)
 
             if verificar_existencia_especialidade(no, caso):
                 print("Esse caso ja existe!")
                 return
-            
-            no.subcategorias.append(No(caso))    
+
+            no.subcategorias.append(No(caso))
             print("Caso adicionado com sucesso!")
-            salvar_dados()
-            input("\nPressione ENTER para continuar...")
         else:
             print("Essa especialidade nao existe!")
     except Exception as e:
@@ -395,16 +407,20 @@ def atualizar_especialidade():
         if not esp:
             print("A especialidade nao pode estar vazia!")
             return
+        if esp.lower() == arvore_clinica_geral.nome.lower():
+            print("Nao e possivel alterar a " + arvore_clinica_geral.nome + "!")
+            return
         if verificar_existencia_especialidade(arvore_clinica_geral,esp):
             esp_antiga = pegar_no_filho(arvore_clinica_geral, esp)
-            novo_nome = input("Digite o novo nome: \n").strip()
+            if esp_antiga is None:
+                print("Essa especialidade nao existe!")
+                return
+            novo_nome = input("Digite o novo nome: \n").replace("|", "").strip()
             if not novo_nome:
                 print("O novo nome nao pode estar vazio!")
                 return
             esp_antiga.nome = novo_nome
-            print("Especialidade Atualizada com sucesso!")
-            salvar_dados()
-            input("\nPressione ENTER para continuar...")
+            print("Especialidade atualizada com sucesso!")
         else:
             print("Essa especialidade nao existe!")
             return
@@ -419,15 +435,18 @@ def atualizar_caso():
             print("A especialidade nao pode estar vazia!")
             return
         if verificar_existencia_especialidade(arvore_clinica_geral,esp):
-            caso_antigo_nome = input("Digite o nome do codigo a ser alterado: \n").strip()
+            caso_antigo_nome = input("Digite o nome do caso a ser alterado: \n").strip()
             if not caso_antigo_nome:
-                print("O caso nao pode estar vazio")
+                print("O caso nao pode estar vazio!")
                 return
             especialidade_pai = pegar_no_filho(arvore_clinica_geral, esp)
             if verificar_existencia_especialidade(especialidade_pai, caso_antigo_nome):
                 caso_antigo = pegar_no_filho(especialidade_pai, caso_antigo_nome)
+                if caso_antigo is None or caso_antigo == especialidade_pai:
+                    print("Este caso nao existe!")
+                    return
 
-                novo_nome = input("Digite o novo nome: \n").strip()
+                novo_nome = input("Digite o novo nome: \n").replace("|", "").strip()
                 if not novo_nome:
                     print("O novo nome nao pode estar vazio!")
                     return
@@ -436,8 +455,6 @@ def atualizar_caso():
                     return
                 caso_antigo.nome = novo_nome
                 print("Caso atualizado com sucesso!")
-                salvar_dados()
-                input("\nPressione ENTER para continuar...")
             else:
                 print("Este caso nao existe!")
                 return
@@ -460,7 +477,7 @@ def remover_especialidade():
             print("Essa especialidade nao existe!")
             return
         
-        resp = input("Tem certeza que deseja remover a especialidade? Isso removera todos os casos junto. S - N").upper().strip()
+        resp = input("Tem certeza que deseja remover a especialidade? Isso removera todos os casos junto. S - N: ").upper().strip()
         if resp not in ["S", "N"]:
             print("Voce deve digitar S ou N!")
             return
@@ -472,8 +489,6 @@ def remover_especialidade():
         print("Removendo especialidade...")
         arvore_clinica_geral.subcategorias.remove(especialidade_antiga_no)
         print("Especialidade removida com sucesso!")
-        salvar_dados()
-        input("\nPressione ENTER para continuar...")
         
     except Exception as e:
         print(f"Erro: {e}")
@@ -507,8 +522,6 @@ def remover_caso():
         print("Removendo caso...")
         esp_no.subcategorias.remove(caso_no)
         print("Caso removido com sucesso!")
-        salvar_dados()
-        input("\nPressione ENTER para continuar...")
     except Exception as e:
         print(f"Erro: {e}")
 
@@ -519,7 +532,8 @@ while True:
     print("(2) - Controle de Prontuarios")
     print("(3) - Controle de Pacientes")
     print("(4) - Controle de Especialidades")
-    print("(5) - Sair")
+    print("(5) - Salvar Dados")
+    print("(6) - Sair")
     print("======================")
 
     try:
@@ -660,10 +674,23 @@ while True:
                         remover_caso()
                     elif op == 7:
                         atualizar_caso()
-                except Exception as e:
-                    print(f"Error: {e}")
+                    else:
+                        print("Digite uma opção válida!")
+                    input("\nPressione ENTER para continuar...")
+                except ValueError:
+                    print("Digite apenas números!")
+                    input("\nPressione ENTER para continuar...")
 
         elif r == 5:
+            salvar_dados()
+            print("Dados salvos com sucesso em " + ARQUIVO + "!")
+            input("\nPressione ENTER para continuar...")
+
+        elif r == 6:
+            resp = input("Deseja salvar os dados antes de sair? S - N: ").upper().strip()
+            if resp == "S":
+                salvar_dados()
+                print("Dados salvos com sucesso em " + ARQUIVO + "!")
             print("Encerrando o programa...")
             break
 

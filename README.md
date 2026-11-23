@@ -2,13 +2,19 @@
 
 Trabalho final da disciplina de Estruturas de Dados — Tema 1 (Sistema de Gestão Hospitalar).
 
+O sistema roda no terminal e usa as quatro estruturas estudadas na disciplina (Fila, Pilha, Lista e Árvore). Os dados ficam guardados no arquivo de texto `dados_sistema.txt`.
+
+## Requisitos
+
+- Python 3.8 ou superior (não usa nenhuma biblioteca externa, só `collections` e `os`, que já vêm com o Python).
+
 ## Como executar o sistema
 
-1. Abra o terminal (prompt de comando ou PowerShell no Windows).
-2. Navegue até a pasta do projeto:
+1. Abra o terminal (Prompt de Comando ou PowerShell no Windows, Terminal no Linux/macOS).
+2. Entre na pasta do projeto, onde está o arquivo `main.py`:
 
 ```bash
-cd \sistema-gestao-hospitalar
+cd caminho/para/sistema-gestao-hospitalar
 ```
 
 3. Execute o programa:
@@ -17,54 +23,76 @@ cd \sistema-gestao-hospitalar
 python main.py
 ```
 
-4. Utilize o menu numérico para navegar entre as abas:
-   - (1) Controle de Atendimentos — Fila de triagem (FIFO)
-   - (2) Controle de Prontuários — Pilha de prontuários médicos (LIFO)
-   - (3) Controle de Pacientes — Lista de pacientes internados
-   - (4) Controle de Especialidades — Árvore de especialidades e diagnósticos
-   - (5) Sair
+> No Linux/macOS pode ser necessário usar `python3 main.py`.
 
-Os dados são salvos automaticamente no arquivo `dados_sistema.txt` a cada operação de inclusão, atualização ou remoção.
+4. Use o menu numérico para navegar:
 
-## Estrutura de dados escolhida e justificativa técnica
+| Opção | Menu | Estrutura |
+|-------|------|-----------|
+| 1 | Controle de Atendimentos — triagem de pacientes | Fila (FIFO) |
+| 2 | Controle de Prontuários — prontuários acessados recentemente | Pilha (LIFO) |
+| 3 | Controle de Pacientes — pacientes internados e leitos | Lista |
+| 4 | Controle de Especialidades — especialidades e diagnósticos (casos) | Árvore |
+| 5 | Salvar Dados — grava tudo em `dados_sistema.txt` | — |
+| 6 | Sair — pergunta se deseja salvar antes de encerrar | — |
 
-O projeto implementa as quatro estruturas fundamentais estudadas na disciplina, cada uma desempenhando seu papel operacional no contexto hospitalar:
+Cada controle tem as operações de inserir, remover, atualizar e consultar, respeitando a regra da sua estrutura.
 
-### 1. Fila — Atendimento/Triagem de pacientes (FIFO)
+## Estruturas de dados e justificativa técnica
 
-**Estrutura utilizada:** `collections.deque` da biblioteca padrão do Python.
+### 1. Fila — Triagem de pacientes (FIFO)
 
-**Justificativa:** A triagem hospitalar segue estritamente a ordem de chegada: o primeiro paciente a ser cadastrado deve ser o primeiro a ser atendido. Isso é o comportamento clássico de uma Fila (First-In, First-Out). A operação de inserção ocorre no final da fila (`append`) e a remoção/atendimento ocorre no início (`popleft`), respeitando a regra de atendimento sequencial e justo dos pacientes.
+**Estrutura utilizada:** `collections.deque`.
 
-### 2. Pilha — Histórico de prontuários médicos acessados (LIFO)
+**Justificativa:** A triagem segue a ordem de chegada: o primeiro paciente a entrar é o primeiro a ser atendido (First-In, First-Out). A inserção acontece no fim da fila (`append`) e o atendimento/remoção no início (`popleft`). O `deque` foi escolhido no lugar da `list` porque remover do início de uma `list` obriga o Python a deslocar todos os outros elementos (O(n)), enquanto o `popleft` do `deque` é O(1).
 
-**Estrutura utilizada:** `list` nativa do Python.
+O campo "prioridade" é apenas informativo: a ordem de atendimento continua sendo a ordem de chegada.
 
-**Justificativa:** Os prontuários acessados recentemente precisam ser revisados rapidamente, sendo o último prontuário acessado o primeiro a ser exibido para consulta ou correção. Esse comportamento é o de uma Pilha (Last-In, First-Out). A inserção e a remoção ocorrem sempre no topo da pilha (`append` e `pop`), permitindo acesso rápido ao último registro manipulado.
+### 2. Pilha — Histórico de prontuários acessados (LIFO)
 
-### 3. Lista — Cadastro dinâmico de pacientes internados e leitos ocupados
+**Estrutura utilizada:** `list`.
 
-**Estrutura utilizada:** `list` de dicionários.
+**Justificativa:** O prontuário acessado por último é o primeiro que o médico precisa revisar (Last-In, First-Out). A inserção e a remoção acontecem sempre no topo, que é o final da lista (`append` e `pop`), as duas operações O(1). Na consulta, a pilha é exibida do topo para a base, com o topo marcado.
 
-**Justificativa:** O cadastro de pacientes internados exige manipulação por índice ou chave (busca por nome, atualização de leito e status, remoção por alta). Uma lista permite inserção dinâmica no final, consulta de todos os internados, atualização de campos específicos e exclusão de pacientes que deram alta, sem a rigidez de ordem imposta por filas ou pilhas.
+### 3. Lista — Pacientes internados e leitos ocupados
 
-### 4. Árvore — Indexação hierárquica de especialidades médicas e diagnósticos clínicos
+**Estrutura utilizada:** `list` de dicionários (`{"id", "nome", "leito", "status"}`).
 
-**Estrutura utilizada:** Classe `No` com lista de subcategorias (árvore de dicionários/nós aninhados).
+**Justificativa:** O cadastro de internados não tem uma ordem obrigatória de entrada e saída: um paciente pode receber alta ou trocar de leito a qualquer momento. Por isso a lista é manipulada pela chave **ID** de cada paciente (gerada automaticamente), o que permite atualizar ou remover qualquer registro, sem a restrição de início/fim da fila e da pilha.
 
-**Justificativa:** As especialidades médicas e seus diagnósticos possuem naturalmente uma organização hierárquica (ex: Clínica Geral → Cardiologia → Arritmia). Uma árvore permite representar essa relação pai-filho de forma clara, suportando navegação por níveis, cadastro de subcategorias e diagnósticos, além de consultas organizadas por especialidade.
+### 4. Árvore — Especialidades médicas e diagnósticos
+
+**Estrutura utilizada:** classe `No`, em que cada nó tem um `nome` e uma lista `subcategorias` com os nós filhos.
+
+**Justificativa:** Especialidades e diagnósticos são naturalmente hierárquicos. A árvore tem três níveis:
+
+```
+Clinica Geral            <- raiz
+----Cardiologia          <- especialidade
+     -Arritmia           <- caso / diagnóstico
+----Ortopedia
+     -Fratura
+```
+
+É possível cadastrar, renomear e remover especialidades e casos. Não são permitidos casos repetidos dentro da mesma especialidade, e a raiz "Clinica Geral" não pode ser renomeada nem removida. Remover uma especialidade remove também todos os casos dela.
 
 ## Persistência de dados
 
-Todo o estado do sistema é salvo em um único arquivo de texto chamado `dados_sistema.txt`, utilizando o delimitador pipe (`|`). Não são utilizados bancos de dados, JSON, CSV ou bibliotecas de serialização como `pickle`.
+Todo o estado do sistema é salvo em um único arquivo de texto, `dados_sistema.txt`, usando o delimitador pipe (`|`). Não são usados bancos de dados, JSON, CSV ou bibliotecas de serialização como `pickle`.
 
-Exemplo do formato do arquivo:
+- **Em memória:** as operações de inserir, atualizar e remover alteram apenas as estruturas em memória (`deque`, `list` e árvore). O arquivo não é modificado durante o uso.
+- **Salvar:** a opção **5 — Salvar Dados** do menu principal exporta o estado atual de todas as estruturas para o arquivo (`salvar_dados()`), sobrescrevendo o conteúdo anterior. Ao escolher **6 — Sair**, o programa pergunta se o usuário deseja salvar antes de encerrar, para evitar perder alterações.
+- **Carregar:** ao iniciar, o programa verifica se `dados_sistema.txt` existe. Se existir, reconstrói as estruturas a partir dele (`carregar_dados()`); se não existir, começa vazio. O arquivo só é criado quando algum dado é salvo.
+- O caractere `|` é removido do que o usuário digita, para não quebrar o formato do arquivo.
+
+Formato de cada linha (o primeiro campo identifica a estrutura):
 
 ```
 FILA|205|Roberto Alves|Prioridade Alta
 PILHA|PRONT-889|Paciente 101|Consulta Cardiologia
 LISTA|101|Carlos Silva|Leito 04|Estavel
 ARVORE|Clinica Geral|Cardiologia|Arritmia
+ARVORE|Clinica Geral|Ortopedia
 ```
 
-O arquivo é lido automaticamente ao iniciar o programa (`carregar_dados()`) e sobrescrito a cada operação de escrita (`salvar_dados()`).
+A última linha mostra uma especialidade sem nenhum caso cadastrado: ela é gravada sem o último campo.
